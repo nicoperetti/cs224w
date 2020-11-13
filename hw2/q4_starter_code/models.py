@@ -45,9 +45,13 @@ class GNNStack(torch.nn.Module):
         # HINT: the __init__ function contains parameters you will need. You may 
         # also find pyg_nn.global_max_pool useful for graph classification.
         # Our implementation is ~6 lines, but don't worry if you deviate from this.
+        for i in range(self.num_layers):
+            x = self.convs[i](x, edge_index)
+            x = F.relu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
 
-        x = None # TODO
-
+        if self.task == 'graph':
+            x = pyg_nn.global_max_pool(x, batch)
         ############################################################################
 
         x = self.post_mp(x)
@@ -69,8 +73,8 @@ class GraphSage(pyg_nn.MessagePassing):
         # Define the layers needed for the forward function. 
         # Our implementation is ~2 lines, but don't worry if you deviate from this.
 
-        self.lin = None # TODO
-        self.agg_lin = None # TODO
+        self.lin = nn.Linear(in_channels, out_channels)
+        self.agg_lin = nn.Linear(in_channels, out_channels)
 
         ############################################################################
 
@@ -90,29 +94,23 @@ class GraphSage(pyg_nn.MessagePassing):
         # https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html
         # Our implementation is ~4 lines, but don't worry if you deviate from this.
 
-        out = None # TODO
+        out = self.propagate(edge_index, size=(num_nodes, num_nodes), x=x)
+        out = F.relu(self.agg_lin(out))
 
+        out += self.lin(x)
+        if self.normalize_emb:
+            out = F.normalize(out, p=2., dim=-1)
         ############################################################################
+        return out
 
-        return self.propagate(edge_index, size=(num_nodes, num_nodes), x=out)
-
-    def message(self, x_j, edge_index, size):
+    def message(self, x_j):
         # x_j has shape [E, out_channels]
-
-        row, col = edge_index
-        deg = pyg_utils.degree(row, size[0], dtype=x_j.dtype)
-        deg_inv_sqrt = deg.pow(-0.5)
-        norm = deg_inv_sqrt[row] * deg_inv_sqrt[col]
-
-        return norm.view(-1, 1) * x_j
+        return x_j
 
     def update(self, aggr_out):
         ############################################################################
         # TODO: Your code here! Perform the update step here. 
         # Our implementation is ~1 line, but don't worry if you deviate from this.
-
-        if self.normalize_emb:
-            aggr_out = None # TODO
 
         ############################################################################
 
