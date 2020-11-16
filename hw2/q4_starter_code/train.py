@@ -7,6 +7,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 
+from datetime import datetime
+from tensorboardX import SummaryWriter
 from torch_geometric.datasets import TUDataset
 from torch_geometric.datasets import Planetoid
 from torch_geometric.data import DataLoader
@@ -50,7 +52,7 @@ def arg_parse():
 
     return parser.parse_args()
 
-def train(dataset, task, args):
+def train(dataset, task, writer, args):
     if task == 'graph':
         # graph classification: separate dataloader for test set
         data_size = len(dataset)
@@ -86,10 +88,12 @@ def train(dataset, task, args):
             total_loss += loss.item() * batch.num_graphs
         total_loss /= len(loader.dataset)
         print(total_loss)
+        writer.add_scalar("loss", total_loss, epoch)
 
         if epoch % 10 == 0:
             test_acc = test(loader, model)
             print(test_acc,   '  test')
+            writer.add_scalar("test accuracy", test_acc, epoch)
 
 def test(loader, model, is_validation=False):
     model.eval()
@@ -126,7 +130,8 @@ def main():
     elif args.dataset == 'cora':
         dataset = Planetoid(root='/tmp/Cora', name='Cora')
         task = 'node'
-    train(dataset, task, args) 
+    writer = SummaryWriter("./log/" + datetime.now().strftime("%Y%m%d-%H%M%S"))
+    train(dataset, task, writer, args) 
 
 if __name__ == '__main__':
     main()
