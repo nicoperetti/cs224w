@@ -23,4 +23,5 @@ pip install torch-sparse==latest+cpu -f https://pytorch-geometric.com/whl/torch-
 pip install torch-cluster==latest+cpu -f https://pytorch-geometric.com/whl/torch-1.7.0.html
 pip install torch-spline-conv==latest+cpu -f https://pytorch-geometric.com/whl/torch-1.7.0.html
 pip install torch-geometric
+pip install tensorflow tensorboardX
 ```
