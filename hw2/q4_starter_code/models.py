@@ -135,7 +135,7 @@ class GAT(pyg_nn.MessagePassing):
         # Remember that the shape of the output depends the number of heads.
         # Our implementation is ~1 line, but don't worry if you deviate from this.
 
-        self.lin = None # TODO
+        self.lin = nn.Linear(in_channels, out_channels * self.heads)
 
         ############################################################################
 
@@ -146,7 +146,7 @@ class GAT(pyg_nn.MessagePassing):
         # mechanism here. Remember to consider number of heads for dimension!
         # Our implementation is ~1 line, but don't worry if you deviate from this.
 
-        self.att = None # TODO
+        self.att = nn.Parameter(torch.Tensor(self.heads, 2 * out_channels))
 
         ############################################################################
 
@@ -169,7 +169,7 @@ class GAT(pyg_nn.MessagePassing):
         # to propagate messages.
         # Our implementation is ~1 line, but don't worry if you deviate from this.
         
-        x = None # TODO
+        x = self.lin(x)
         ############################################################################
 
         # Start propagating messages.
@@ -183,14 +183,17 @@ class GAT(pyg_nn.MessagePassing):
         # in equation (7). Remember to be careful of the number of heads with 
         # dimension!
         # Our implementation is ~5 lines, but don't worry if you deviate from this.
-
-        alpha = None # TODO
+        x_i_v = x_i.view(-1, self.heads, self.out_channels)  # (batch, K, F')
+        x_j_v = x_j.view(-1, self.heads, self.out_channels)  # (batch, K, F')
+        x_concat = torch.cat([x_i, x_j], dim=-1) # shape: (batch, K, 2*F')
+        alpha = (x_concat * self.att).sum(dim=-1)  # dot product. shape: (batch, K)
+        alpha = F.leaky_relu(alpha, negative_slope=0.2)
+        alpha = pyg_utils.softmax(alpha, index=edge_index_i, num_nodes=size_i)
 
         ############################################################################
 
         alpha = F.dropout(alpha, p=self.dropout, training=self.training)
-
-        return x_j * alpha.view(-1, self.heads, 1)
+        return (x_j * alpha.unsqueeze(-1)).view(self.heads, -1, self.out_channels)
 
     def update(self, aggr_out):
         # Updates node embedings.
